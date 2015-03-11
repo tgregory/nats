@@ -108,6 +108,9 @@ type Options struct {
 	// The size of the buffered channel used between the socket
 	// Go routine and the message delivery or sync subscription.
 	SubChanLen int
+
+	// Used for custom transports
+	dialer TimeoutDialer
 }
 
 const (
@@ -229,17 +232,29 @@ type MsgHandler func(msg *Msg)
 // Connect will attempt to connect to the NATS server.
 // The url can contain username/password semantics.
 func Connect(url string) (*Conn, error) {
+	return ConnectDialer(url, nil)
+}
+
+// Same as Connect but with a custom dialer
+func ConnectDialer(url string, dialer TimeoutDialer) (*Conn, error) {
 	opts := DefaultOptions
 	opts.Url = url
+	opts.dialer = dialer
 	return opts.Connect()
 }
 
 // SecureConnect will attempt to connect to the NATS server using TLS.
 // The url can contain username/password semantics.
 func SecureConnect(url string) (*Conn, error) {
+	return SecureConnectDialer(url, nil)
+}
+
+// Same as SecureConnect but with a custom dialer
+func SecureConnectDialer(url string, dialer TimeoutDialer) (*Conn, error) {
 	opts := DefaultOptions
 	opts.Url = url
 	opts.Secure = true
+	opts.dialer = dialer
 	return opts.Connect()
 }
 
@@ -399,10 +414,25 @@ func (nc *Conn) setupServerPool() error {
 	return nc.pickServer()
 }
 
+// Used for custom transports
+type TimeoutDialer interface {
+	DialTimeout(host string, timeout time.Duration) (net.Conn, error)
+}
+
+type TcpDialer struct{}
+
+func (td TcpDialer) DialTimeout(host string, timeout time.Duration) (net.Conn, error) {
+	return net.DialTimeout("tcp", host, timeout)
+}
+
 // createConn will connect to the server and wrap the appropriate
 // bufio structures. It will do the right thing when an existing
 // connection is in place.
 func (nc *Conn) createConn() error {
+	dialer := nc.Opts.dialer
+	if nil == dialer {
+		dialer = TcpDialer{}
+	}
 	if nc.Opts.Timeout < 0 {
 		return ErrBadTimeout
 	}
@@ -411,7 +441,7 @@ func (nc *Conn) createConn() error {
 	} else {
 		cur.lastAttempt = time.Now()
 	}
-	nc.conn, nc.err = net.DialTimeout("tcp", nc.url.Host, nc.Opts.Timeout)
+	nc.conn, nc.err = dialer.DialTimeout(nc.url.Host, nc.Opts.Timeout)
 	if nc.err != nil {
 		return nc.err
 	}
