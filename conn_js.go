@@ -1,9 +1,9 @@
 // +build js
+
 package nats
 
 import (
 	"bufio"
-	"errors"
 )
 
 // Read a control line and process the intended op.
