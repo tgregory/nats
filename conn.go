@@ -2,8 +2,8 @@
 package nats
 
 import (
+	"bufio"
 	"errors"
-	"io/bufio"
 	"unsafe"
 )
 

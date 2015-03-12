@@ -2,8 +2,8 @@
 package nats
 
 import (
+	"bufio"
 	"errors"
-	"io/bufio"
 )
 
 // Read a control line and process the intended op.
