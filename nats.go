@@ -416,13 +416,13 @@ func (nc *Conn) setupServerPool() error {
 
 // Used for custom transports
 type TimeoutDialer interface {
-	DialTimeout(host string, timeout time.Duration) (net.Conn, error)
+	DialTimeout(u url.URL, timeout time.Duration) (net.Conn, error)
 }
 
 type TcpDialer struct{}
 
-func (td TcpDialer) DialTimeout(host string, timeout time.Duration) (net.Conn, error) {
-	return net.DialTimeout("tcp", host, timeout)
+func (td TcpDialer) DialTimeout(u url.URL, timeout time.Duration) (net.Conn, error) {
+	return net.DialTimeout("tcp", u.Host, timeout)
 }
 
 // createConn will connect to the server and wrap the appropriate
@@ -441,7 +441,7 @@ func (nc *Conn) createConn() error {
 	} else {
 		cur.lastAttempt = time.Now()
 	}
-	nc.conn, nc.err = dialer.DialTimeout(nc.url.Host, nc.Opts.Timeout)
+	nc.conn, nc.err = dialer.DialTimeout(*nc.url, nc.Opts.Timeout)
 	if nc.err != nil {
 		return nc.err
 	}
